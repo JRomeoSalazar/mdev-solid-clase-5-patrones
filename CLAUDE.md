@@ -21,10 +21,18 @@ Node >= 22. ESM project (`"type": "module"`): imports use explicit `.ts` extensi
 
 ## Architecture
 
-- `src/checkout-service.ts` — the core. `CheckoutService.checkout()` validates, prices, charges via the legacy gateway, then fans out to side-effect services. Cross-cutting behaviour (`withLogging`, `withRetry`, `withCache`) is toggled by `CheckoutOptions` flags and tangled inside `checkout()` / `callGateway()`. A large `switch (request.paymentMethod)` handles per-method fees/gateway mapping.
-- `src/order.ts` — `Order` with a status lifecycle; transitions are validated with `switch (this.currentStatus)` blocks and `if` chains.
-- `src/legacy/payments-gateway-v1.ts` — 2011 payments gateway with its own request shape (`LegacyPaymentRequest`). **Must not be modified**; the service translates to it by hand in more than one place.
-- `src/notifications/side-effects.ts` — five singleton services (email, inventory, loyalty, warehouse, analytics) that `CheckoutService` calls by name after charging.
+Hybrid approach: functional composition (functions and data tables) instead of class hierarchies.
+
+- `src/checkout-service.ts` — `CheckoutService.checkout` is a pipeline built in the constructor: `processCheckout` (validate, price, charge, notify) wrapped by decorators according to `CheckoutOptions`.
+- `src/decorators.ts` — `pipe`/`when` plus the cross-cutting decorators: `withGatewayLogging`, `withRetry` (gateway) and `withCheckoutLogging`, `withCache` (checkout). Only completed (`issued`) purchases are cached.
+- `src/payment-methods.ts` — Strategy as a `Record<PaymentMethod, PaymentMethodHandler>` registry (validate + charge). The only place that translates to `LegacyPaymentRequest`.
+- `src/validation.ts` — common validation rules as an array of pure functions; the payment method adds its own rule last.
+- `src/pricing.ts` — pure price/discount calculation.
+- `src/purchase-listeners.ts` — Observer as an array of functions called after a purchase completes (inject a custom list via the 3rd constructor argument).
+- `src/checkout-request.ts` — `buildCheckoutRequest` takes named fields with defaults (replaces the 14-positional factory).
+- `src/order.ts` — `Order` driven by two tables: `TRANSITIONS` (legal moves and error messages) and `STATES` (description and advertised actions).
+- `src/legacy/payments-gateway-v1.ts` — 2011 payments gateway. **Must not be modified**.
+- `src/notifications/side-effects.ts` — five singleton services (email, inventory, loyalty, warehouse, analytics).
 - `src/types.ts` — shared request/result types.
 
 ## Exercise constraints (from the README)
