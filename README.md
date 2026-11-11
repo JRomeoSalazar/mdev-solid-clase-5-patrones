@@ -166,3 +166,5 @@ revisor crítico: ¿en cuál de estas decisiones me he pasado de ingeniería y e
 cuál me he quedado corto?"*.
 
 Después decide tú si tiene razón. Esa última decisión es tuya, y no se delega.
+
+Esto es una pequeña modificación
